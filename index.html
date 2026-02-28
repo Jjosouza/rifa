@@ -227,27 +227,7 @@ footer strong{color:white}
 </footer>
 
 <script>
-const BIN_ID = '69a310b7d0ea881f40e23b46';
-
-const READ_KEY = '$2a$10$K.0eS3erSHpb5FIhtUGCj0vRz5NGx5aP9.zbJrqV17lMX0o2YPKbw';
-
-
-function getMasterKeyFromAdmin() {
-  return (localStorage.getItem('jsonbin_master_key') || '').trim();
-}
-function setMasterKeyFromAdmin(k) {
-  localStorage.setItem('jsonbin_master_key', (k||'').trim());
-}
-async function requireMasterKey() {
-  let k = getMasterKeyFromAdmin();
-  if (k) return k;
-  // Só pedir quando estiver no admin e for salvar
-  k = prompt('Cole a JSONBin X-MASTER-KEY (somente para salvar alterações):') || '';
-  k = k.trim();
-  if (k) setMasterKeyFromAdmin(k);
-  return k;
-}
-
+const BIN_ID = '69a310e0dea881f40e23bbd';
 const API_KEY = '$2a$10$WwDMzPOtIBIA3CS8Ihqm5uV3j06Dip8IJLXRqHBI7T/Pg.mfrSDAS';
 const TOTAL = 200, VALOR = 10;
 const PIX = '16997733349';
@@ -261,8 +241,8 @@ function pad(n){ return String(n).padStart(3,'0'); }
 // Carrega cotas do JSONBin
 async function carregarCotas() {
   try {
-    const r = await fetch('https://api.jsonbin.io/v3/b/' + BIN_ID + '?meta=false' + '/latest', {
-      headers: { 'X-Master-Key': await requireMasterKey() }
+    const r = await fetch('https://api.jsonbin.io/v3/b/' + BIN_ID + '/latest', {
+      headers: { 'X-Master-Key': API_KEY }
     });
     const d = await r.json();
     vendidos = new Set(d.record.vendidos);
@@ -328,11 +308,11 @@ async function salvarAlteracoes() {
   msg.textContent = 'Salvando...';
   sub.textContent = 'Atualizando para todos verem';
   try {
-    const r = await fetch('https://api.jsonbin.io/v3/b/' + BIN_ID + '?meta=false', {
+    const r = await fetch('https://api.jsonbin.io/v3/b/' + BIN_ID, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'X-Master-Key': await requireMasterKey()
+        'X-Master-Key': API_KEY
       },
       body: JSON.stringify({ vendidos: [...vendidos] })
     });
@@ -388,9 +368,8 @@ function irWpp() {
   if(!nome || !fone) { alert('Preencha seu nome e WhatsApp!'); return; }
   const total = escolhidos.length * VALOR;
   const msg = encodeURIComponent('RIFA BENEFICENTE 1\n\nNome: ' + nome + '\nWhatsApp: ' + fone + '\nCota(s): ' + escolhidos.map(pad).join(', ') + '\nTotal: R$ ' + total + ',00\n\nSegue o comprovante do PIX!');
-  const url = 'https://wa.me/' + WPP + '?text=' + msg;
-  // Em vez de window.open (bloqueado em alguns navegadores), navegar direto.
-  window.location.href = url;
+  window.location.href = 'https://wa.me/' + WPP + '?text=' + msg;
+  fecharModal();
 }
 
 document.getElementById('overlay').addEventListener('click', function(e) { if(e.target===this) fecharModal(); });
