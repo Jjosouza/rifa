@@ -312,7 +312,8 @@ async function salvarAlteracoes() {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'X-Master-Key': API_KEY
+        'X-Master-Key': API_KEY,
+        'X-Bin-Versioning': 'false'
       },
       body: JSON.stringify({ vendidos: [...vendidos] })
     });
@@ -330,7 +331,7 @@ async function salvarAlteracoes() {
   } catch(e) {
     icone.textContent = '❌';
     msg.textContent = 'Erro ao salvar';
-    sub.textContent = 'Verifique sua internet e tente novamente';
+    sub.textContent = 'Verifique sua internet e tente novamente. Erro: ' + (e.message||'desconhecido');
     setTimeout(() => el.classList.remove('show'), 3000);
   }
 }
