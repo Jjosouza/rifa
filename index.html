@@ -227,8 +227,8 @@ footer strong{color:white}
 </footer>
 
 <script>
-const BIN_ID = '69a310e0dea881f40e23bbd';
-const API_KEY = '$2a$10$WwDMzPOtIBIA3CS8Ihqm5uV3j06Dip8IJLXRqHBI7T/Pg.mfrSDAS';
+const BIN_ID = '69a310b7d0ea881f40e23b46';
+const API_KEY = '$2a$10$K.0eS3erSHpb5FIhtUGCjOvRz5NGx5aP9.zbJrqV17lMX0o2YPKbW';
 const TOTAL = 200, VALOR = 10;
 const PIX = '16997733349';
 const WPP = '5516997733349';
@@ -242,7 +242,7 @@ function pad(n){ return String(n).padStart(3,'0'); }
 async function carregarCotas() {
   try {
     const r = await fetch('https://api.jsonbin.io/v3/b/' + BIN_ID + '/latest', {
-      headers: { 'X-Master-Key': API_KEY }
+      headers: { 'X-Access-Key': API_KEY }
     });
     const d = await r.json();
     vendidos = new Set(d.record.vendidos);
@@ -298,7 +298,7 @@ function entrarAdmin() {
   } else { alert('Senha incorreta!'); }
 }
 
-async function salvarAlteracoes() {
+async async function salvarAlteracoes() {
   const el = document.getElementById('salvando');
   const icone = document.getElementById('salvarIcone');
   const msg = document.getElementById('salvarMsg');
@@ -308,11 +308,11 @@ async function salvarAlteracoes() {
   msg.textContent = 'Salvando...';
   sub.textContent = 'Atualizando para todos verem';
   try {
-    const r = await fetch('https://api.jsonbin.io/v3/b/' + BIN_ID, {
+    const r = await fetch('https://api.jsonbin.io/v3/b/' + BIN_ID + '?meta=false', {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'X-Master-Key': API_KEY
+        'X-Access-Key': API_KEY
       },
       body: JSON.stringify({ vendidos: [...vendidos] })
     });
@@ -326,7 +326,11 @@ async function salvarAlteracoes() {
         document.getElementById('avisoAdmin').classList.remove('show');
         atualizar();
       }, 2500);
-    } else { throw new Error(); }
+    } else {
+      const t = await r.text().catch(()=> '');
+      console.error('JSONBin save failed:', r.status, t);
+      throw new Error();
+    }
   } catch(e) {
     icone.textContent = '❌';
     msg.textContent = 'Erro ao salvar';
@@ -368,7 +372,7 @@ function irWpp() {
   if(!nome || !fone) { alert('Preencha seu nome e WhatsApp!'); return; }
   const total = escolhidos.length * VALOR;
   const msg = encodeURIComponent('RIFA BENEFICENTE 1\n\nNome: ' + nome + '\nWhatsApp: ' + fone + '\nCota(s): ' + escolhidos.map(pad).join(', ') + '\nTotal: R$ ' + total + ',00\n\nSegue o comprovante do PIX!');
-  window.location.href = 'https://wa.me/' + WPP + '?text=' + msg;
+  window.open('https://wa.me/' + WPP + '?text=' + msg, '_blank');
   fecharModal();
 }
 
