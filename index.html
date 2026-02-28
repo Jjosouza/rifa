@@ -228,23 +228,7 @@ footer strong{color:white}
 
 <script>
 const BIN_ID = '69a310b7d0ea881f40e23b46';
-const API_KEY = '';
-
-
-// === JSONBIN KEY (não deixe hardcoded se não quiser) ===
-// Se estiver vazio, o site vai pedir a chave e salvar no navegador (localStorage).
-function getApiKey() {
-  return (localStorage.getItem('jsonbin_master_key') || '').trim();
-}
-async function ensureApiKey() {
-  let k = getApiKey();
-  if (k) return k;
-  k = prompt('Cole sua JSONBin Master Key (fica salva só neste navegador):') || '';
-  k = k.trim();
-  if (k) localStorage.setItem('jsonbin_master_key', k);
-  return k;
-}
-
+const API_KEY = '$2a$10$WwDMzPOtIBIA3CS8Ihqm5uV3j06Dip8IJLXRqHBI7T/Pg.mfrSDAS';
 const TOTAL = 200, VALOR = 10;
 const PIX = '16997733349';
 const WPP = '5516997733349';
@@ -257,15 +241,10 @@ function pad(n){ return String(n).padStart(3,'0'); }
 // Carrega cotas do JSONBin
 async function carregarCotas() {
   try {
-    const r = await fetch('https://api.jsonbin.io/v3/b/' + BIN_ID + '/latest', {
-      headers: { 'X-Master-Key': await ensureApiKey() }
+    const r = await fetch('https://api.jsonbin.io/v3/b/' + BIN_ID + '?meta=false' + '/latest', {
+      headers: { 'X-Master-Key': API_KEY }
     });
-    
-  // Debug: capturar resposta do servidor quando falhar
-  let _respText = '';
-  try { _respText = await r.text(); } catch (e) {}
-  if (!r.ok) { console.error('JSONBin save failed:', r.status, _respText); }
-const d = await r.json();
+    const d = await r.json();
     vendidos = new Set(d.record.vendidos);
   } catch(e) {
     // Se falhar, usa lista inicial
@@ -329,24 +308,15 @@ async function salvarAlteracoes() {
   msg.textContent = 'Salvando...';
   sub.textContent = 'Atualizando para todos verem';
   try {
-    const r = await fetch('https://api.jsonbin.io/v3/b/' + BIN_ID, {
+    const r = await fetch('https://api.jsonbin.io/v3/b/' + BIN_ID + '?meta=false', {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'X-Master-Key': await ensureApiKey()
+        'X-Master-Key': API_KEY
       },
-      body: JSON.stringify({ record: { vendidos: [...vendidos]  } })
+      body: JSON.stringify({ vendidos: [...vendidos] })
     });
-    
-  if (r.status === 401) { localStorage.removeItem('jsonbin_master_key'); const r2 = await fetch('https://api.jsonbin.io/v3/b/' + BIN_ID, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': await ensureApiKey()
-      },
-      body: JSON.stringify({ record: { vendidos: [...vendidos]  } })
-    }); return r2; }
-if(r.ok) {
+    if(r.ok) {
       icone.textContent = '✅';
       msg.textContent = 'Salvo com sucesso!';
       sub.textContent = 'Todos já podem ver os números atualizados';
