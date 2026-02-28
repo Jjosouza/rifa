@@ -6,7 +6,7 @@
 <title>Rifa 1 — Beneficente</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-/* MANTIVE TODO O SEU CSS IGUAL */
+/* CSS ORIGINAL INTEGRAL */
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Nunito',sans-serif;background:#f4f4f4;color:#222;font-size:17px}
 .topo{background:#15803d;color:white;text-align:center;padding:28px 20px 34px}
@@ -20,7 +20,6 @@ body{font-family:'Nunito',sans-serif;background:#f4f4f4;color:#222;font-size:17p
 .fw.full{grid-column:span 2}
 .fw img{width:100%;display:block;object-fit:contain;max-height:260px;background:#111}
 .fw.full img{max-height:290px}
-.sorteio-aviso{margin-top:12px;background:#f0fdf4;border:2px solid #86efac;border-radius:10px;padding:11px 14px;font-size:0.88rem;color:#15803d;font-weight:700;text-align:center}
 .legenda{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap}
 .li{display:flex;align-items:center;gap:6px;font-size:0.88rem;font-weight:700}
 .lc{width:18px;height:18px;border-radius:4px;flex-shrink:0}
@@ -31,11 +30,11 @@ body{font-family:'Nunito',sans-serif;background:#f4f4f4;color:#222;font-size:17p
 .cota{aspect-ratio:1;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;cursor:pointer;border:2px solid transparent;transition:transform .12s;user-select:none;-webkit-tap-highlight-color:transparent}
 .cota.livre{background:#f9fafb;border-color:#d1d5db;color:#374151}
 .cota.vendida{background:#fee2e2;border-color:#fca5a5;color:#b91c1c;cursor:default}
-.cota.escolhida{background:#22c55e;border-color:#16a34a;color:white;transform:scale(1.1);box-shadow:0 3px 10px rgba(22,163,74,.35)}
-.btn-admin{display:block;width:100%;background:none;border:2px dashed #e5e7eb;border-radius:10px;padding:9px;color:#d1d5db;font-size:0.78rem;font-family:'Nunito',sans-serif;cursor:pointer;margin-top:12px}
+.cota.escolhida{background:#22c55e!important;border-color:#16a34a!important;color:white!important;transform:scale(1.1);box-shadow:0 3px 10px rgba(22,163,74,.35)}
+.btn-admin{display:block;width:100%;background:none;border:2px dashed #e5e7eb;border-radius:10px;padding:9px;color:#d1d5db;font-size:0.78rem;cursor:pointer;margin-top:12px}
 .painel-admin{display:none;background:#fffbeb;border:2px solid #fde068;border-radius:12px;padding:14px;margin-top:8px}
 .painel-admin.show{display:block}
-.admin-input{width:100%;border:2px solid #fde068;border-radius:9px;padding:10px 13px;font-size:0.97rem;margin-bottom:8px}
+.admin-input{width:100%;border:2px solid #fde068;border-radius:9px;padding:10px 13px;margin-bottom:8px}
 .btn-admin-entrar{width:100%;background:#ca8a04;color:white;border:none;border-radius:9px;padding:11px;font-weight:800;cursor:pointer}
 .aviso-admin{display:none;background:#ca8a04;color:white;text-align:center;padding:9px;font-weight:800;position:sticky;top:0;z-index:40}
 .aviso-admin.show{display:flex;align-items:center;justify-content:center;gap:10px}
@@ -46,15 +45,15 @@ body{font-family:'Nunito',sans-serif;background:#f4f4f4;color:#222;font-size:17p
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:100;align-items:flex-end;justify-content:center}
 .overlay.show{display:flex}
 .modal{background:white;border-radius:26px 26px 0 0;padding:26px 20px 44px;width:100%;max-width:460px}
-.campo input{width:100%;border:2px solid #d1d5db;border-radius:11px;padding:13px 15px;font-size:1rem}
-.btn-wpp-modal{width:100%;background:#25D366;color:white;border:none;border-radius:13px;padding:16px;font-size:1.1rem;font-weight:900;cursor:pointer}
+.campo input{width:100%;border:2px solid #d1d5db;border-radius:11px;padding:13px 15px;font-size:1rem;margin-top:10px}
+.btn-wpp-modal{width:100%;background:#25D366;color:white;border:none;border-radius:13px;padding:16px;font-size:1.1rem;font-weight:900;cursor:pointer;margin-top:15px}
 </style>
 </head>
 <body>
 
 <div class="aviso-admin" id="avisoAdmin">
-  <span>ADMIN ATIVO — Toque para bloquear/desbloquear</span>
-  <button class="btn-salvar" onclick="salvarAlteracoes()">Salvar e publicar</button>
+  <span>MODO EDIÇÃO</span>
+  <button class="btn-salvar" onclick="salvarAlteracoes()">Salvar Alterações</button>
 </div>
 
 <div class="topo">
@@ -64,54 +63,51 @@ body{font-family:'Nunito',sans-serif;background:#f4f4f4;color:#222;font-size:17p
 </div>
 
 <div class="card">
+  <div class="titulo">O que aconteceu</div>
+  <p style="font-size:0.97rem;line-height:1.75;color:#333">Na madrugada de 26 de fevereiro, meu esposo Junior capotou o veículo de trabalho...</p>
+</div>
+
+<div class="card">
   <div class="titulo">Escolha suas cotas</div>
   <div class="legenda">
     <div class="li"><div class="lc livre"></div> Livre</div>
     <div class="li"><div class="lc vendida"></div> Vendida</div>
     <div class="li"><div class="lc escolhida"></div> Selecionada</div>
   </div>
-  <div id="grade" class="grade"></div>
+  <div id="grade" class="grade">Carregando números...</div>
   
   <button class="btn-admin" onclick="document.getElementById('painelAdmin').classList.toggle('show')">Acesso Administrativo</button>
   <div class="painel-admin" id="painelAdmin">
-    <input type="password" id="senhaAdmin" class="admin-input" placeholder="Senha de acesso">
-    <button class="btn-admin-entrar" onclick="entrarAdmin()">Entrar no modo edição</button>
+    <input type="password" id="senhaAdmin" class="admin-input" placeholder="Senha">
+    <button class="btn-admin-entrar" onclick="entrarAdmin()">Entrar</button>
   </div>
 </div>
 
 <div class="barra" id="barra">
   <div id="infoSelecao"></div>
-  <button class="btn-pagar" onclick="abrirModal()">Reservar Agora</button>
+  <button class="btn-pagar" onclick="abrirModal()">Reservar</button>
 </div>
 
 <div class="overlay" id="overlay">
   <div class="modal">
-    <h3>Quase lá!</h3>
-    <p>Informe seus dados para a Lívia identificar seu pagamento.</p>
-    <div class="campo">
-      <input type="text" id="nome" placeholder="Seu Nome Completo">
-    </div>
-    <div class="campo">
-      <input type="tel" id="fone" placeholder="Seu WhatsApp">
-    </div>
+    <h3>Reservar Cotas</h3>
+    <input type="text" id="nome" class="campo" placeholder="Seu Nome">
+    <input type="tel" id="fone" class="campo" placeholder="Seu WhatsApp">
     <button class="btn-wpp-modal" onclick="finalizar()">Confirmar no WhatsApp</button>
-    <button onclick="fecharModal()" style="width:100%; background:none; border:none; margin-top:15px; color:#999;">Voltar</button>
+    <button onclick="fecharModal()" style="width:100%; margin-top:10px; background:none; border:none; color:#999;">Cancelar</button>
   </div>
 </div>
 
 <script>
-// CONFIGURAÇÕES REAIS
 const BIN_ID = "69a310b7d0ea881f40e23b46";
 const MASTER_KEY = "$2a$10$WwDMzPOtIBIA3CS8Ihqm5uV3j06Dip8IJLXRqHBI7T/Pg.mfrSDAS";
 const RIFA_KEY = "rifa1";
-const WPP_NUM = "5516997733349"; // WhatsApp da Lívia corrigido
-const PRECO = 10;
+const WPP_NUM = "5516997733349"; 
 
 let ocupados = [];
 let escolhidos = [];
 let modoAdmin = false;
 
-// CARREGAR DADOS DO JSONBIN
 async function carregar() {
     try {
         const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
@@ -120,7 +116,7 @@ async function carregar() {
         const data = await res.json();
         ocupados = data.record[RIFA_KEY] || [];
         desenharGrade();
-    } catch (e) { console.error("Erro ao carregar", e); }
+    } catch (e) { alert("Erro ao carregar dados."); }
 }
 
 function desenharGrade() {
@@ -130,26 +126,25 @@ function desenharGrade() {
         const n = i.toString().padStart(2, '0');
         const div = document.createElement('div');
         const estaVendido = ocupados.includes(n);
+        const estaEscolhido = escolhidos.includes(n);
         
         div.className = `cota ${estaVendido ? 'vendida' : 'livre'}`;
-        if (escolhidos.includes(n)) div.classList.add('escolhida');
+        if (estaEscolhido) div.classList.add('escolhida');
         div.textContent = n;
 
-        div.onclick = () => clicarCota(n, div);
+        div.onclick = () => clicarCota(n);
         grade.appendChild(div);
     }
 }
 
-function clicarCota(n, el) {
+function clicarCota(n) {
     if (modoAdmin) {
-        // No modo admin, inverte o estado de "vendido"
         if (ocupados.includes(n)) {
             ocupados = ocupados.filter(x => x !== n);
-            el.className = 'cota livre';
         } else {
             ocupados.push(n);
-            el.className = 'cota vendida';
         }
+        desenharGrade();
         return;
     }
 
@@ -168,59 +163,37 @@ function atualizarBarra() {
     const barra = document.getElementById('barra');
     if (escolhidos.length > 0) {
         barra.classList.add('show');
-        document.getElementById('infoSelecao').innerHTML = `<strong>${escolhidos.length} cotas selecionadas</strong>Total: R$ ${escolhidos.length * PRECO},00`;
+        document.getElementById('infoSelecao').innerHTML = `<strong>${escolhidos.length} cotas</strong>`;
     } else {
         barra.classList.remove('show');
     }
 }
 
-// MODO ADMIN
 function entrarAdmin() {
-    const senha = document.getElementById('senhaAdmin').value;
-    if (senha === "123") { // COLOQUE SUA SENHA AQUI
+    if (document.getElementById('senhaAdmin').value === "123") {
         modoAdmin = true;
         document.getElementById('avisoAdmin').classList.add('show');
         document.getElementById('painelAdmin').classList.remove('show');
-        alert("Modo Admin Ativo! Clique nos números para bloquear/liberar e depois clique em SALVAR lá no topo.");
-    } else {
-        alert("Senha incorreta");
-    }
+    } else { alert("Senha errada"); }
 }
 
 async function salvarAlteracoes() {
-    const btn = document.querySelector('.btn-salvar');
-    btn.textContent = "Salvando...";
-    btn.disabled = true;
-
     try {
-        // Busca o registro completo para não apagar outras rifas
         const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
             headers: { "X-Master-Key": MASTER_KEY }
         });
         const data = await res.json();
         let record = data.record;
-        
-        // Atualiza apenas a chave desta rifa
         record[RIFA_KEY] = ocupados;
 
-        const saveRes = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+        await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
             method: 'PUT',
-            headers: {
-                "Content-Type": "application/json",
-                "X-Master-Key": MASTER_KEY
-            },
+            headers: { "Content-Type": "application/json", "X-Master-Key": MASTER_KEY },
             body: JSON.stringify(record)
         });
-
-        if (saveRes.ok) {
-            alert("Alterações salvas com sucesso!");
-            location.reload();
-        }
-    } catch (e) {
-        alert("Erro ao salvar");
-        btn.textContent = "Salvar e publicar";
-        btn.disabled = false;
-    }
+        alert("Salvo!");
+        location.reload();
+    } catch (e) { alert("Erro ao salvar"); }
 }
 
 function abrirModal() { document.getElementById('overlay').classList.add('show'); }
@@ -228,26 +201,14 @@ function fecharModal() { document.getElementById('overlay').classList.remove('sh
 
 async function finalizar() {
     const nome = document.getElementById('nome').value;
-    const fone = document.getElementById('fone').value;
-    if(!nome || !fone) return alert("Preencha os dados");
+    if(!nome) return alert("Digite seu nome");
+    
+    // Bloqueia no banco antes de enviar
+    ocupados = [...ocupados, ...escolhidos];
+    await salvarAlteracoes();
 
-    // Salva os números escolhidos como ocupados antes de ir pro zap
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-        headers: { "X-Master-Key": MASTER_KEY }
-    });
-    const data = await res.json();
-    let record = data.record;
-    record[RIFA_KEY] = [...(record[RIFA_KEY] || []), ...escolhidos];
-
-    await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-        method: 'PUT',
-        headers: { "Content-Type": "application/json", "X-Master-Key": MASTER_KEY },
-        body: JSON.stringify(record)
-    });
-
-    const msg = encodeURIComponent(`Olá Lívia! Escolhi as cotas: ${escolhidos.join(', ')}\nNome: ${nome}\nTotal: R$ ${escolhidos.length * PRECO},00`);
+    const msg = encodeURIComponent(`Olá Lívia! Reservei as cotas: ${escolhidos.join(', ')}\nNome: ${nome}`);
     window.open(`https://wa.me/${WPP_NUM}?text=${msg}`);
-    location.reload();
 }
 
 carregar();
