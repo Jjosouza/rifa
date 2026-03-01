@@ -233,90 +233,20 @@ const TOTAL = 200, VALOR = 10;
 const PIX = '16997733349';
 const WPP = '5516997733349';
 const SENHA = 'junior2026';
-let vendidos = new Set(((data && data.record && data.record.vendidos) ? data.record.vendidos : (data && data.vendidos ? data.vendidos : [])) || []);
+let vendidos = new Set();
 let escolhidos = [], adminAtivo = false;
 
 function pad(n){ return String(n).padStart(3,'0'); }
 
 // Carrega cotas do JSONBin
-async function carregarCotas() {
+async async function carregarCotas() {
   try {
     const r = await fetch('https://api.jsonbin.io/v3/b/' + BIN_ID + '/latest', {
-      headers: {
-      'X-Master-Key': API_KEY
-    }
-    });
-    const d = await r.json();
-    vendidos = new Set(d.record.vendidos);
-  } catch(e) {
-    // Se falhar, usa lista inicial
-    vendidos = new Set([]);
-  }
-  buildGrid();
-}
-
-function buildGrid() {
-  const g = document.getElementById('grade');
-  g.innerHTML = '';
-  for(let i = 1; i <= TOTAL; i++) {
-    const d = document.createElement('div');
-    d.className = 'cota ' + (vendidos.has(i) ? 'vendida' : 'livre');
-    d.textContent = pad(i);
-    d.onclick = () => clicar(i, d);
-    g.appendChild(d);
-  }
-}
-
-function clicar(n, el) {
-  if(adminAtivo) {
-    if(vendidos.has(n)) { vendidos.delete(n); el.className = 'cota livre'; }
-    else { vendidos.add(n); escolhidos = escolhidos.filter(x => x !== n); el.className = 'cota vendida'; }
-    atualizar(); return;
-  }
-  if(vendidos.has(n)) return;
-  const idx = escolhidos.indexOf(n);
-  if(idx === -1) { escolhidos.push(n); el.classList.replace('livre','escolhida'); }
-  else { escolhidos.splice(idx,1); el.classList.replace('escolhida','livre'); }
-  atualizar();
-}
-
-function atualizar() {
-  const bar = document.getElementById('barra');
-  if(escolhidos.length > 0 && !adminAtivo) {
-    bar.classList.add('show');
-    document.getElementById('bNums').textContent = escolhidos.map(pad).join(', ');
-    document.getElementById('bTotal').textContent = 'R$ ' + escolhidos.length * VALOR;
-  } else { bar.classList.remove('show'); }
-}
-
-function toggleAdmin() { document.getElementById('painelAdmin').classList.toggle('show'); }
-
-function entrarAdmin() {
-  if(document.getElementById('senhaInput').value === SENHA) {
-    adminAtivo = true;
-    document.getElementById('painelAdmin').classList.remove('show');
-    document.getElementById('avisoAdmin').classList.add('show');
-    escolhidos = []; atualizar();
-  } else { alert('Senha incorreta!'); }
-}
-
-async async function salvarAlteracoes() {
-  const el = document.getElementById('salvando');
-  const icone = document.getElementById('salvarIcone');
-  const msg = document.getElementById('salvarMsg');
-  const sub = document.getElementById('salvarSub');
-  el.classList.add('show');
-  icone.textContent = '⏳';
-  msg.textContent = 'Salvando...';
-  sub.textContent = 'Atualizando para todos verem';
-  try {
-    const r = await fetch('https://api.jsonbin.io/v3/b/' + BIN_ID + '?meta=false', {
-      method: 'PUT',
       headers: {
       'Content-Type': 'application/json',
       'X-Master-Key': API_KEY
     },
-      body: JSON.stringify({ vendidos: Array.from(vendidos).sort((a,b)=>a-b) })
+    body: JSON.stringify({ vendidos: Array.from(vendidos).sort((a,b)=>a-b) })
     });
     if(r.ok) {
       icone.textContent = '✅';
