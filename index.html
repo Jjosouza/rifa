@@ -31,7 +31,7 @@ body{font-family:'Nunito',sans-serif;background:#f4f4f4;color:#222;font-size:17p
 .wpp-box .label{font-size:0.8rem;color:#666;margin-bottom:4px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
 .wpp-box .numero{font-size:1.4rem;font-weight:900;color:#14532d;letter-spacing:2px;margin-bottom:10px}
 .btn-copiar-wpp{background:#25D366;color:white;border:none;border-radius:10px;padding:11px 20px;font-size:1rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;width:100%}
-.copiado-wpp{display:none;text-align:center;color:#15803d;font-weight:800;font-size:0.95rem;margin-top:8px}
+.copiado-wpp{display:none;text-align:center;color:#15803d;font-weight:800;font-size:0.95rem;margin-top:8px;padding:8px;background:#d1fae5;border-radius:8px}
 .copiado-wpp.show{display:block}
 .aviso-confirmacao{background:#fffbeb;border:2px solid #fde68a;border-radius:10px;padding:12px 14px;font-size:0.88rem;color:#92400e;line-height:1.55;margin-top:8px}
 .legenda{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap}
@@ -45,7 +45,7 @@ body{font-family:'Nunito',sans-serif;background:#f4f4f4;color:#222;font-size:17p
 .cota.livre{background:#f9fafb;border-color:#d1d5db;color:#374151}
 .cota.vendida{background:#fee2e2;border-color:#fca5a5;color:#b91c1c;cursor:default}
 .cota.escolhida{background:#22c55e;border-color:#16a34a;color:white;transform:scale(1.1);box-shadow:0 3px 10px rgba(22,163,74,.35)}
-.carregando{text-align:center;padding:30px;color:#9ca3af;font-size:0.9rem}
+.erro-cotas{text-align:center;padding:20px;color:#b91c1c;font-size:0.9rem;background:#fee2e2;border-radius:10px}
 .btn-admin{display:block;width:100%;background:none;border:2px dashed #e5e7eb;border-radius:10px;padding:9px;color:#d1d5db;font-size:0.78rem;font-family:'Nunito',sans-serif;cursor:pointer;margin-top:12px}
 .painel-admin{display:none;background:#fffbeb;border:2px solid #fde068;border-radius:12px;padding:14px;margin-top:8px}
 .painel-admin.show{display:block}
@@ -141,18 +141,9 @@ footer strong{color:white}
 
 <div class="card">
   <div class="titulo">Como comprar</div>
-  <div class="passo">
-    <div class="pnum">1</div>
-    <div class="ptxt">Escolha seu(s) número(s) abaixo e toque em <strong>Pagar PIX</strong>.</div>
-  </div>
-  <div class="passo">
-    <div class="pnum">2</div>
-    <div class="ptxt">Copie a chave PIX, abra seu banco e pague o valor indicado.</div>
-  </div>
-  <div class="passo">
-    <div class="pnum">3</div>
-    <div class="ptxt">Copie o número abaixo e mande o comprovante no WhatsApp para confirmar sua cota.</div>
-  </div>
+  <div class="passo"><div class="pnum">1</div><div class="ptxt">Escolha seu(s) número(s) abaixo e toque em <strong>Pagar PIX</strong>.</div></div>
+  <div class="passo"><div class="pnum">2</div><div class="ptxt">Copie a chave PIX, abra seu banco e pague o valor indicado.</div></div>
+  <div class="passo"><div class="pnum">3</div><div class="ptxt">Copie o número abaixo e mande o comprovante no WhatsApp para confirmar sua cota.</div></div>
   <div class="wpp-box">
     <div class="label">WhatsApp — Lívia</div>
     <div class="numero">(16) 99773-3349</div>
@@ -170,7 +161,7 @@ footer strong{color:white}
     <div class="li"><div class="lc vendida"></div>Vendida</div>
     <div class="li"><div class="lc escolhida"></div>Selecionada</div>
   </div>
-  <div class="grade" id="grade"><div class="carregando">Carregando cotas...</div></div>
+  <div class="grade" id="grade"><div style="text-align:center;padding:30px;color:#9ca3af;font-size:0.9rem">Carregando cotas...</div></div>
   <button class="btn-admin" onclick="toggleAdmin()">⚙️</button>
   <div class="painel-admin" id="painelAdmin">
     <p>Área do organizador</p>
@@ -200,10 +191,7 @@ footer strong{color:white}
     <div class="resumo" id="resumo"></div>
     <div class="step-label" data-n="1">Copie a chave PIX e pague no seu banco</div>
     <div class="pix-modal">
-      <div>
-        <div class="chave">(16) 99773-3349</div>
-        <div class="nome">Lívia Roberta Oliveira da Silva</div>
-      </div>
+      <div><div class="chave">(16) 99773-3349</div><div class="nome">Lívia Roberta Oliveira da Silva</div></div>
       <button class="btn-cop-modal" onclick="copiarPix()">Copiar</button>
     </div>
     <div class="copiado-pix" id="copiadoPix">Chave copiada! Abra seu banco e faça o pagamento.</div>
@@ -227,8 +215,9 @@ footer strong{color:white}
 </footer>
 
 <script>
-const BIN_ID = '69a310e0dea881f40e23bbd';
-const API_KEY = '$2a$10$WwDMzPOtIBIA3CS8Ihqm5uV3j06Dip8IJLXRqHBI7T/Pg.mfrSDAS';
+const BIN_ID = '69a310b7d0ea881f40e23b46';
+const MASTER_KEY = '$2a$10$WwDMzPOtIBIA3CS8Ihqm5uV3j06Dip8IJLXRqHBI7T/Pg.mfrSDAS';
+const ACCESS_KEY = '$2a$10$K.0eS3erSHpb5FIhtUGCjOvRz5NGx5aP9.zbJrqV17lMX0o2YPKbW';
 const TOTAL = 200, VALOR = 10;
 const PIX = '16997733349';
 const WPP = '5516997733349';
@@ -238,32 +227,108 @@ let escolhidos = [], adminAtivo = false;
 
 function pad(n){ return String(n).padStart(3,'0'); }
 
-// Carrega cotas do JSONBin
-async async function carregarCotas() {
+async function carregarCotas() {
   try {
     const r = await fetch('https://api.jsonbin.io/v3/b/' + BIN_ID + '/latest', {
       headers: {
-      'Content-Type': 'application/json',
-      'X-Master-Key': API_KEY
-    },
-    body: JSON.stringify({ vendidos: Array.from(vendidos).sort((a,b)=>a-b) })
+        'X-Master-Key': MASTER_KEY,
+        'X-Access-Key': ACCESS_KEY
+      }
+    });
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    vendidos = new Set(d.record.vendidos || []);
+  } catch(e) {
+    console.error('Erro ao carregar:', e);
+    vendidos = new Set([]);
+  }
+  buildGrid();
+}
+
+function buildGrid() {
+  const g = document.getElementById('grade');
+  g.innerHTML = '';
+  for(let i = 1; i <= TOTAL; i++) {
+    const d = document.createElement('div');
+    d.className = 'cota ' + (vendidos.has(i) ? 'vendida' : 'livre');
+    d.textContent = pad(i);
+    d.onclick = () => clicar(i, d);
+    g.appendChild(d);
+  }
+}
+
+function clicar(n, el) {
+  if(adminAtivo) {
+    if(vendidos.has(n)) { vendidos.delete(n); el.className = 'cota livre'; }
+    else { vendidos.add(n); escolhidos = escolhidos.filter(x => x !== n); el.className = 'cota vendida'; }
+    atualizar(); return;
+  }
+  if(vendidos.has(n)) return;
+  const idx = escolhidos.indexOf(n);
+  if(idx === -1) { escolhidos.push(n); el.classList.replace('livre','escolhida'); }
+  else { escolhidos.splice(idx,1); el.classList.replace('escolhida','livre'); }
+  atualizar();
+}
+
+function atualizar() {
+  const bar = document.getElementById('barra');
+  if(escolhidos.length > 0 && !adminAtivo) {
+    bar.classList.add('show');
+    document.getElementById('bNums').textContent = escolhidos.map(pad).join(', ');
+    document.getElementById('bTotal').textContent = 'R$ ' + escolhidos.length * VALOR;
+  } else { bar.classList.remove('show'); }
+}
+
+function toggleAdmin() { document.getElementById('painelAdmin').classList.toggle('show'); }
+
+function entrarAdmin() {
+  if(document.getElementById('senhaInput').value === SENHA) {
+    adminAtivo = true;
+    document.getElementById('painelAdmin').classList.remove('show');
+    document.getElementById('avisoAdmin').classList.add('show');
+    escolhidos = []; atualizar();
+  } else { alert('Senha incorreta!'); }
+}
+
+async function salvarAlteracoes() {
+  const elSalv = document.getElementById('salvando');
+  const icone = document.getElementById('salvarIcone');
+  const msg = document.getElementById('salvarMsg');
+  const sub = document.getElementById('salvarSub');
+  elSalv.classList.add('show');
+  icone.textContent = '⏳';
+  msg.textContent = 'Salvando...';
+  sub.textContent = 'Atualizando para todos verem';
+  try {
+    const r = await fetch('https://api.jsonbin.io/v3/b/' + BIN_ID, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': MASTER_KEY,
+        'X-Access-Key': ACCESS_KEY,
+        'X-Bin-Versioning': 'false'
+      },
+      body: JSON.stringify({ vendidos: [...vendidos] })
     });
     if(r.ok) {
       icone.textContent = '✅';
       msg.textContent = 'Salvo com sucesso!';
       sub.textContent = 'Todos já podem ver os números atualizados';
       setTimeout(() => {
-        el.classList.remove('show');
+        elSalv.classList.remove('show');
         adminAtivo = false;
         document.getElementById('avisoAdmin').classList.remove('show');
         atualizar();
       }, 2500);
-    } else { throw new Error(); }
+    } else {
+      const txt = await r.text();
+      throw new Error(r.status + ': ' + txt);
+    }
   } catch(e) {
     icone.textContent = '❌';
     msg.textContent = 'Erro ao salvar';
-    sub.textContent = 'Verifique sua internet e tente novamente';
-    setTimeout(() => el.classList.remove('show'), 3000);
+    sub.textContent = e.message || 'Verifique sua internet';
+    setTimeout(() => elSalv.classList.remove('show'), 4000);
   }
 }
 
@@ -300,15 +365,13 @@ function irWpp() {
   if(!nome || !fone) { alert('Preencha seu nome e WhatsApp!'); return; }
   const total = escolhidos.length * VALOR;
   const msg = encodeURIComponent('RIFA BENEFICENTE 1\n\nNome: ' + nome + '\nWhatsApp: ' + fone + '\nCota(s): ' + escolhidos.map(pad).join(', ') + '\nTotal: R$ ' + total + ',00\n\nSegue o comprovante do PIX!');
-  window.location.href = 'https://wa.me/' + WPP + '?text=' + msg;
+  window.open('https://wa.me/' + WPP + '?text=' + msg, '_blank');
   fecharModal();
 }
 
 document.getElementById('overlay').addEventListener('click', function(e) { if(e.target===this) fecharModal(); });
 
-// Carrega ao abrir
 carregarCotas();
-// Atualiza a cada 30 segundos para pegar alterações de outras pessoas
 setInterval(()=>{ if(!adminAtivo) carregarCotas(); }, 30000);
 </script>
 </body>
