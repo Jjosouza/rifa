@@ -38,6 +38,7 @@ body{font-family:'Nunito',sans-serif;background:#f4f4f4;color:#222;font-size:18p
 .cota{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;cursor:pointer;border:2px solid transparent;transition:transform .12s;user-select:none;-webkit-tap-highlight-color:transparent}
 .cota.livre{background:#f9fafb;border-color:#d1d5db;color:#374151}
 .cota.vendida{background:#fee2e2;border-color:#fca5a5;color:#b91c1c;cursor:not-allowed}
+.cota.reservada{background:#fef08a;border-color:#facc15;color:#78350f;cursor:not-allowed}
 .cota.escolhida{background:#22c55e;border-color:#16a34a;color:white;transform:scale(1.1);box-shadow:0 3px 12px rgba(22,163,74,.4)}
 /* ADMIN NOVO — seleção laranja + registrar comprador + sidebar (apenas admin) */
 .cota.adminsel{background:#fb923c;border-color:#f97316;color:white;transform:scale(1.08);box-shadow:0 3px 12px rgba(249,115,22,.35)}
@@ -119,22 +120,6 @@ footer strong{color:white}
 .progresso-bar{height:12px;background:#e5e7eb;border-radius:999px;overflow:hidden}
 .progresso-fill{height:100%;background:#22c55e;border-radius:999px;transition:width .25s ease}
 
-/* CONFIRMAÇÃO RÁPIDA */
-.overlay-confirma{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:105;align-items:center;justify-content:center}
-.overlay-confirma.show{display:flex}
-.modal-confirma{background:white;border-radius:20px;padding:28px 22px;width:90%;max-width:420px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
-.modal-confirma-titulo{font-size:1.3rem;font-weight:900;color:#15803d;margin-bottom:10px}
-.modal-confirma-sub{color:#666;font-size:0.95rem;margin-bottom:20px;line-height:1.5}
-.bloco-info{background:#f0fdf4;border:2px solid #86efac;border-radius:14px;padding:16px;margin-bottom:16px}
-.info-label{font-size:0.85rem;color:#666;font-weight:700;margin-bottom:5px;text-transform:uppercase}
-.info-valor{font-size:1.15rem;color:#14532d;font-weight:900;word-break:break-word}
-.info-nums{margin-top:8px;padding-top:8px;border-top:1px solid #86efac;display:flex;flex-wrap:wrap;gap:6px}
-.info-num{background:white;border:2px solid #22c55e;border-radius:8px;padding:6px 12px;font-weight:800;color:#14532d;font-size:0.9rem}
-.modal-confirma-btns{display:flex;gap:12px;margin-top:18px}
-.btn-confirmar{flex:1;background:#22c55e;color:white;border:none;border-radius:12px;padding:15px;font-size:1rem;font-weight:900;cursor:pointer;font-family:'Nunito',sans-serif}
-.btn-confirmar:active{background:#16a34a}
-.btn-cancelar{flex:1;background:#f0fdf4;color:#14532d;border:2px solid #86efac;border-radius:12px;padding:15px;font-size:1rem;font-weight:900;cursor:pointer;font-family:'Nunito',sans-serif}
-
 </style>
 </head>
 <body>
@@ -157,34 +142,6 @@ footer strong{color:white}
   </div>
   <div class="sidebar-b" id="sidebarBody">
     <p style="color:#64748b;font-weight:800">Carregando…</p>
-  </div>
-</div>
-
-<!-- MODAL DE CONFIRMAÇÃO RÁPIDA COM DADOS PRÉ-PREENCHIDOS -->
-<div class="overlay-confirma" id="overlayConfirma">
-  <div class="modal-confirma">
-    <div class="modal-confirma-titulo">✅ Confirme sua reserva</div>
-    <div class="modal-confirma-sub">Seus dados já estão preenchidos. Confirme para reservar seus números.</div>
-    <div class="bloco-info">
-      <div class="info-label">👤 Seu nome</div>
-      <div class="info-valor" id="confirmaaNome">—</div>
-    </div>
-    <div class="bloco-info">
-      <div class="info-label">📱 Seu WhatsApp</div>
-      <div class="info-valor" id="confirmaFone">—</div>
-    </div>
-    <div class="bloco-info">
-      <div class="info-label">🎟️ Números selecionados</div>
-      <div class="info-nums" id="confirmaNums"></div>
-    </div>
-    <div class="bloco-info">
-      <div class="info-label">💰 Valor total</div>
-      <div class="info-valor" id="confirmaTotal">—</div>
-    </div>
-    <div class="modal-confirma-btns">
-      <button class="btn-confirmar" onclick="confirmarReservaRapida()">✅ Confirmar e ir ao WhatsApp</button>
-      <button class="btn-cancelar" onclick="cancelarConfirma()">← Voltar</button>
-    </div>
   </div>
 </div>
 
@@ -262,6 +219,7 @@ footer strong{color:white}
   </div>
 <div class="legenda">
     <div class="li"><div class="lc livre"></div>Disponível</div>
+    <div class="li"><div class="lc" style="background:#fef08a;border-color:#facc15"></div>Reservado</div>
     <div class="li"><div class="lc vendida"></div>Vendida</div>
     <div class="li"><div class="lc escolhida"></div>Selecionada</div>
   </div>
@@ -634,7 +592,7 @@ async function liberarVenda(num){
   buildGrid();
 }
 
-// ============ WHATSAPP (CORRIGIDO - NÃO PISCA!) ============
+// ============ WHATSAPP (definitivo, sem abre/fecha) ============
 function prepararWpp(e){
   if(e) e.preventDefault();
 
@@ -651,54 +609,18 @@ function prepararWpp(e){
     return false;
   }
 
-  // Fechar modal de pagamento
-  qs('overlay').classList.remove('show');
-  
-  // Mostrar confirmação com dados pré-preenchidos
-  qs('confirmaaNome').textContent = nome;
-  qs('confirmaFone').textContent = fone;
-  const numsHtml = nums.map(n=>`<span class="info-num">${pad(n)}</span>`).join('');
-  qs('confirmaNums').innerHTML = numsHtml;
-  const total = nums.length*VALOR;
-  qs('confirmaTotal').textContent = 'R$ '+total+',00';
-  
-  // Guardar dados
-  window._reservaData = {nome, fone, nums, total};
-  
-  // Mostrar overlay
-  qs('overlayConfirma').classList.add('show');
-  
-  return false;
-}
-
-function cancelarConfirma(){
-  qs('overlayConfirma').classList.remove('show');
-  qs('abrirModal')();
-  window._reservaData = null;
-}
-
-function confirmarReservaRapida(){
-  if(!window._reservaData){
-    alert('Dados faltando');
-    return;
-  }
-  
-  const {nome, fone, nums, total} = window._reservaData;
+  const total=nums.length*VALOR;
   const linkDaRifa = location.href;
 
-  // RESERVAR (Fire and Forget)
+  // IMPORTANTÍSSIMO:
+  // NÃO esperar o Firebase (await) porque isso quebra o "gesture" do clique e o WhatsApp pode piscar/fechar.
   reservarNumerosFireAndForget(nome, fone, nums);
 
-  // Limpar seleção
+  // limpa seleção local e atualiza UI
   escolhidos=[];
   buildGrid();
   atualizarBarraSelecao();
 
-  // Fechar modal
-  qs('overlayConfirma').classList.remove('show');
-  window._reservaData = null;
-
-  // Preparar mensagem
   const msg=encodeURIComponent(
     'Olá! Quero confirmar minha cota da rifa.\n\n' +
     'Nome: '+nome+'\n' +
@@ -709,9 +631,12 @@ function confirmarReservaRapida(){
     'Segue o comprovante do PIX!'
   );
 
-  // USAR window.open() EM VEZ DE window.location.assign() (NÃO PISCA!)
-  const url = 'https://wa.me/'+WPP.replace(/\D/g,'')+'?text='+msg;
-  window.open(url, '_blank');
+  // usar api.whatsapp.com tende a ser mais estável em alguns aparelhos do que wa.me
+  const url = 'https://api.whatsapp.com/send?phone='+WPP+'&text='+msg;
+
+  // navegar uma vez
+  window.location.assign(url);
+  return false;
 }
 
 // compat com HTML existente
@@ -719,8 +644,6 @@ window.toggleAdmin = toggleAdmin;
 window.entrarAdmin = entrarAdmin;
 window.prepararWpp = prepararWpp;
 window.sairAdmin = sairAdmin;
-window.cancelarConfirma = cancelarConfirma;
-window.confirmarReservaRapida = confirmarReservaRapida;
 
 // boot
 carregarCotas();
