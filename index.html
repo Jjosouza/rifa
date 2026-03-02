@@ -322,61 +322,87 @@ const SENHA='junior2026';
 const TEMPO_RESERVA=90*60*1000; // 1h30
 
 let vendidos=new Set();
-let reservas={};
+let reservas={};              // { "15": {nome, fone, timestamp}, ... }
 let escolhidos=[];
-let compradoresPorNumero={};
+let compradoresPorNumero={};  // { "15": "Nome", ... }
+let adminAtivo=false;
 
 function pad(n){return String(n).padStart(3,'0')}
 
+function qs(id){return document.getElementById(id);}
+
+async function fetchJson(url){
+  const r = await fetch(url, {cache:'no-store'});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return await r.json();
+}
+
 async function carregarCotas(){
   try{
-    const [rv, rc, rr] = await Promise.all([
-      fetch(FB_VENDIDOS),
-      fetch(FB_COMPRADORES),
-      fetch(FB_RESERVAS)
+    const [dv, dc, dr] = await Promise.all([
+      fetchJson(FB_VENDIDOS),
+      fetchJson(FB_COMPRADORES),
+      fetchJson(FB_RESERVAS).catch(()=> ({}))
     ]);
-
-    vendidos = new Set((await rv.json()||[]).map(Number));
-    compradoresPorNumero = await rc.json()||{};
-    reservas = await rr.json()||{};
-    limparReservasExpiradas();
+    vendidos = new Set((Array.isArray(dv)?dv:[]).map(Number).filter(n=>Number.isFinite(n)));
+    compradoresPorNumero = (dc && typeof dc==='object') ? dc : {};
+    reservas = (dr && typeof dr==='object') ? dr : {};
+    await limparReservasExpiradas(); // faz deletes por item (sem PUT geral)
   }catch(e){
-    vendidos=new Set();
-    compradoresPorNumero={};
-    reservas={};
+    // fallback: não zera o que o usuário já selecionou
+    vendidos = new Set();
+    compradoresPorNumero = {};
+    reservas = {};
   }
   buildGrid();
+  atualizarBarraSelecao();
 }
 
-function limparReservasExpiradas(){
-  const agora=Date.now();
-  for(const num in reservas){
-    if(agora-reservas[num].timestamp > TEMPO_RESERVA){
-      delete reservas[num];
-      delete compradoresPorNumero[num];
+async function limparReservasExpiradas(){
+  const agora = Date.now();
+  const expiradas = [];
+  for(const k in reservas){
+    const r = reservas[k];
+    const ts = r && typeof r.timestamp==='number' ? r.timestamp : 0;
+    const num = Number(k);
+    if(!Number.isFinite(num) || num<=0) continue;
+    if(ts>0 && (agora - ts) > TEMPO_RESERVA){
+      expiradas.push(num);
     }
   }
-  salvarReservas();
-}
+  if(expiradas.length===0) return;
 
-async function salvarReservas(){
-  await fetch(FB_RESERVAS,{
-    method:'PUT',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(reservas)
+  // remove reservas expiradas sem mexer no resto
+  await Promise.all(expiradas.map(num =>
+    fetch(`${FB_BASE}/reservas/${num}.json`, {method:'DELETE', keepalive:true})
+      .catch(()=>{})
+  ));
+
+  // se estava só "pendente" (reservado) e não vendido, remove comprador daquele número
+  await Promise.all(expiradas.map(num => {
+    if(vendidos.has(num)) return Promise.resolve();
+    return fetch(`${FB_BASE}/compradores/${num}.json`, {method:'DELETE', keepalive:true}).catch(()=>{});
+  }));
+
+  // recarrega estado local (leve)
+  expiradas.forEach(n=>{
+    delete reservas[String(n)];
+    if(!vendidos.has(n)) delete compradoresPorNumero[String(n)];
   });
 }
 
 function buildGrid(){
-  const g=document.getElementById('grade');
+  const g=qs('grade');
+  if(!g) return;
   g.innerHTML='';
   for(let i=1;i<=TOTAL;i++){
     const d=document.createElement('div');
     d.textContent=pad(i);
 
+    const key=String(i);
     if(vendidos.has(i)){
       d.className='cota vendida';
-    }else if(reservas[i]){
+    }else if(reservas[key]){
       d.className='cota reservada';
       d.title='Reservada — aguardando confirmação da organizadora';
     }else{
@@ -390,7 +416,35 @@ function buildGrid(){
 }
 
 function clicar(n,el){
-  if(vendidos.has(n) || reservas[n]) return;
+  // ADMIN: ratifica reserva com 1 clique
+  if(adminAtivo){
+    const key=String(n);
+    if(vendidos.has(n)){
+      const nome = compradoresPorNumero[key] ? ` (${compradoresPorNumero[key]})` : '';
+      if(confirm(`Liberar a venda do número ${pad(n)}${nome}?`)){
+        liberarVenda(n);
+      }
+      return;
+    }
+    if(reservas[key]){
+      const nome = reservas[key].nome || compradoresPorNumero[key] || 'Comprador';
+      const fone = reservas[key].fone || '';
+      const msg = `Confirmar pagamento do número ${pad(n)} para "${nome}"?`;
+      if(confirm(msg)){
+        confirmarReservaComoVenda(n);
+      }else{
+        if(confirm(`Liberar a reserva do número ${pad(n)}?`)){
+          liberarReserva(n);
+        }
+      }
+      return;
+    }
+    // admin clicou em livre: (opcional) não faz nada pra não bagunçar seu fluxo
+    return;
+  }
+
+  // VISITANTE
+  if(vendidos.has(n) || reservas[String(n)]) return;
 
   const idx=escolhidos.indexOf(n);
   if(idx===-1){
@@ -400,28 +454,154 @@ function clicar(n,el){
     escolhidos.splice(idx,1);
     el.classList.remove('escolhida');
   }
+  atualizarBarraSelecao();
 }
 
-async function reservarNumeros(nome, nums){
+function atualizarBarraSelecao(){
+  const bar=qs('barra');
+  if(!bar) return;
+  if(escolhidos.length>0 && !adminAtivo){
+    bar.classList.add('show');
+    qs('bNums').textContent = escolhidos.slice().sort((a,b)=>a-b).map(pad).join(', ');
+    qs('bTotal').textContent = 'R$ ' + (escolhidos.length*VALOR);
+  }else{
+    bar.classList.remove('show');
+  }
+}
+
+function toggleAdmin(){
+  qs('painelAdmin')?.classList.toggle('show');
+}
+
+function entrarAdmin(){
+  const v = qs('senhaInput')?.value || '';
+  if(v !== SENHA){
+    alert('Senha incorreta. Tente novamente.');
+    return;
+  }
+  adminAtivo=true;
+  qs('painelAdmin')?.classList.remove('show');
+  qs('avisoAdmin')?.classList.add('show');
+  const btn=qs('sidebarBtn');
+  if(btn) btn.style.setProperty('display','inline-flex','important');
+  escolhidos=[];
+  buildGrid();
+  atualizarBarraSelecao();
+}
+
+function sairAdmin(){
+  adminAtivo=false;
+  qs('avisoAdmin')?.classList.remove('show');
+  const btn=qs('sidebarBtn');
+  if(btn) btn.style.setProperty('display','none','important');
+  buildGrid();
+  atualizarBarraSelecao();
+}
+
+// ============ RESERVA (comprador) ============
+// grava por número (sem PUT geral) para evitar apagar dados
+function reservarNumerosFireAndForget(nome, fone, nums){
   const agora=Date.now();
+  const payloadBase = {nome, fone, timestamp:agora};
+
   (nums||[]).forEach(num=>{
-    reservas[num]={nome,timestamp:agora};
-    compradoresPorNumero[num]=nome;
+    const key=String(num);
+    reservas[key]=payloadBase;
+    compradoresPorNumero[key]=nome;
+
+    // reserva
+    fetch(`${FB_BASE}/reservas/${num}.json`,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payloadBase),
+      keepalive:true
+    }).catch(()=>{});
+
+    // comprador (pendente)
+    fetch(`${FB_BASE}/compradores/${num}.json`,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(nome),
+      keepalive:true
+    }).catch(()=>{});
   });
-  await salvarReservas();
 }
 
-async function prepararWpp(e){
+// ============ ADMIN (ratificar) ============
+async function getVendidosAtual(){
+  const dv = await fetchJson(FB_VENDIDOS).catch(()=>[]);
+  return new Set((Array.isArray(dv)?dv:[]).map(Number).filter(n=>Number.isFinite(n)));
+}
+
+async function putVendidos(setVendidos){
+  const arr=[...setVendidos].sort((a,b)=>a-b);
+  const r = await fetch(FB_VENDIDOS,{
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(arr),
+    cache:'no-store'
+  });
+  if(!r.ok) throw new Error('Falha ao salvar vendidos');
+}
+
+async function confirmarReservaComoVenda(num){
+  const key=String(num);
+
+  // 1) remove reserva (child)
+  await fetch(`${FB_BASE}/reservas/${num}.json`,{method:'DELETE', keepalive:true}).catch(()=>{});
+  delete reservas[key];
+
+  // 2) adiciona em vendidos (merge com latest)
+  const setAtual = await getVendidosAtual();
+  setAtual.add(num);
+  await putVendidos(setAtual);
+  vendidos = setAtual;
+
+  // 3) comprador permanece (já existe)
+  buildGrid();
+  alert(`✅ Número ${pad(num)} confirmado como vendido.`);
+}
+
+async function liberarReserva(num){
+  const key=String(num);
+  await fetch(`${FB_BASE}/reservas/${num}.json`,{method:'DELETE', keepalive:true}).catch(()=>{});
+  delete reservas[key];
+
+  // remove comprador pendente daquele número
+  await fetch(`${FB_BASE}/compradores/${num}.json`,{method:'DELETE', keepalive:true}).catch(()=>{});
+  delete compradoresPorNumero[key];
+
+  buildGrid();
+}
+
+async function liberarVenda(num){
+  const key=String(num);
+
+  // remove de vendidos (merge com latest)
+  const setAtual = await getVendidosAtual();
+  setAtual.delete(num);
+  await putVendidos(setAtual);
+  vendidos = setAtual;
+
+  // remove comprador do número
+  await fetch(`${FB_BASE}/compradores/${num}.json`,{method:'DELETE', keepalive:true}).catch(()=>{});
+  delete compradoresPorNumero[key];
+
+  buildGrid();
+}
+
+// ============ WHATSAPP (definitivo, sem abre/fecha) ============
+function prepararWpp(e){
   if(e) e.preventDefault();
 
-  const nome=document.getElementById('nome').value.trim();
-  const fone=document.getElementById('fone').value.trim();
+  const nome=(qs('nome')?.value||'').trim();
+  const fone=(qs('fone')?.value||'').trim();
   if(!nome||!fone){
     alert('Por favor, preencha seu nome e WhatsApp antes de continuar.');
     return false;
   }
 
-  const nums = escolhidos.slice();
+  const nums = escolhidos.slice().sort((a,b)=>a-b);
   if(nums.length===0){
     alert('Selecione pelo menos 1 número antes de enviar o comprovante.');
     return false;
@@ -430,24 +610,15 @@ async function prepararWpp(e){
   const total=nums.length*VALOR;
   const linkDaRifa = location.href;
 
-  // 1) Reserva os números (1h30) com o nome informado
-  try{
-    await reservarNumeros(nome, nums);
-  }catch(err){
-    alert('Não foi possível reservar agora. Verifique sua internet e tente novamente.');
-    return false;
-  }
+  // IMPORTANTÍSSIMO:
+  // NÃO esperar o Firebase (await) porque isso quebra o "gesture" do clique e o WhatsApp pode piscar/fechar.
+  reservarNumerosFireAndForget(nome, fone, nums);
 
-  // 2) Atualiza UI local imediatamente (evita “sumir seleção” sem feedback)
-  nums.forEach(n=>{
-    // remove da lista de selecionados
-    const idx = escolhidos.indexOf(n);
-    if(idx>-1) escolhidos.splice(idx,1);
-  });
-  
+  // limpa seleção local e atualiza UI
+  escolhidos=[];
   buildGrid();
+  atualizarBarraSelecao();
 
-  // 3) Abre WhatsApp UMA vez, sem abrir/fechar rápido
   const msg=encodeURIComponent(
     'Olá! Quero confirmar minha cota da rifa.\n\n' +
     'Nome: '+nome+'\n' +
@@ -458,13 +629,23 @@ async function prepararWpp(e){
     'Segue o comprovante do PIX!'
   );
 
-  const url='https://wa.me/'+WPP+'?text='+msg;
-  window.location.href=url;
+  // usar api.whatsapp.com tende a ser mais estável em alguns aparelhos do que wa.me
+  const url = 'https://api.whatsapp.com/send?phone='+WPP+'&text='+msg;
+
+  // navegar uma vez
+  window.location.assign(url);
   return false;
 }
 
+// compat com HTML existente
+window.toggleAdmin = toggleAdmin;
+window.entrarAdmin = entrarAdmin;
+window.prepararWpp = prepararWpp;
+window.sairAdmin = sairAdmin;
+
+// boot
 carregarCotas();
-setInterval(carregarCotas,20000);
+setInterval(()=>{ if(!adminAtivo) carregarCotas(); },20000);
 </script>
 </body>
 </html>
