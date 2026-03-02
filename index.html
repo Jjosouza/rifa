@@ -34,15 +34,11 @@ body{font-family:'Nunito',sans-serif;background:#f4f4f4;color:#222;font-size:18p
 .lc.livre{background:#f9fafb;border:2px solid #d1d5db}
 .lc.vendida{background:#fca5a5;border:2px solid #f87171}
 .lc.escolhida{background:#22c55e;border:2px solid #16a34a}
-.lc.reservada{background:#fef08a;border:2px solid #facc15}
-
 .grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:7px}
 .cota{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;cursor:pointer;border:2px solid transparent;transition:transform .12s;user-select:none;-webkit-tap-highlight-color:transparent}
 .cota.livre{background:#f9fafb;border-color:#d1d5db;color:#374151}
 .cota.vendida{background:#fee2e2;border-color:#fca5a5;color:#b91c1c;cursor:not-allowed}
 .cota.escolhida{background:#22c55e;border-color:#16a34a;color:white;transform:scale(1.1);box-shadow:0 3px 12px rgba(22,163,74,.4)}
-.cota.reservada{background:#fef08a;border-color:#facc15;color:#854d0e;cursor:not-allowed}
-
 /* ADMIN NOVO — seleção laranja + registrar comprador + sidebar (apenas admin) */
 .cota.adminsel{background:#fb923c;border-color:#f97316;color:white;transform:scale(1.08);box-shadow:0 3px 12px rgba(249,115,22,.35)}
 .admin-selbar{display:none;background:#f97316;color:white;padding:12px 16px;font-weight:900;font-size:0.95rem;position:sticky;top:52px;z-index:41;align-items:center;justify-content:space-between;gap:10px}
@@ -123,9 +119,6 @@ footer strong{color:white}
 .progresso-bar{height:12px;background:#e5e7eb;border-radius:999px;overflow:hidden}
 .progresso-fill{height:100%;background:#22c55e;border-radius:999px;transition:width .25s ease}
 
-
-.nota-reserva{margin:10px 0 14px;font-size:.92rem;line-height:1.35;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:10px 12px}
-.reserva-info{margin:10px 0 4px;font-size:.9rem;line-height:1.35;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:10px 12px}
 </style>
 </head>
 <body>
@@ -227,9 +220,7 @@ footer strong{color:white}
     <div class="li"><div class="lc livre"></div>Disponível</div>
     <div class="li"><div class="lc vendida"></div>Vendida</div>
     <div class="li"><div class="lc escolhida"></div>Selecionada</div>
-    <div class="li"><div class="lc reservada"></div>Reservada (aguardando confirmação)</div>
   </div>
-  <p class="nota-reserva">🟨 <strong>Reservada</strong>: ao preencher seus dados e tocar em <strong>"Enviar comprovante"</strong>, seus números ficam bloqueados por <strong>1h30</strong> aguardando a confirmação da organizadora. Se não confirmar nesse prazo, eles voltam para disponível.</p>
   <div class="grade" id="grade">
     <div style="grid-column:1/-1;text-align:center;padding:30px;color:#9ca3af">Carregando...</div>
   </div>
@@ -263,7 +254,6 @@ footer strong{color:white}
     <div class="modal-titulo">💳 Como pagar</div>
     <p class="modal-sub">Siga os 3 passos abaixo na ordem certa:</p>
     <div class="resumo" id="resumo"></div>
-    <div class="reserva-info" id="reservaInfo">🟨 Ao continuar, seus números ficam <strong>reservados por 1h30</strong> aguardando a confirmação da organizadora.</div>
 
     <div class="modal-passo">
       <div class="modal-passo-num">1</div>
@@ -326,155 +316,17 @@ const FB_COMPRADORES=FB_BASE+'/compradores.json';
 const FB_RESERVAS=FB_BASE+'/reservas.json';
 
 const TOTAL=200,VALOR=10;
-const PIX = '16997733349',WPP='5516997733349';
+const PIX='16997733349',WPP='5516997733349';
 const SENHA='junior2026';
 
-// Reserva automática: 1h30 (90 min)
-const TEMPO_RESERVA_MS = 90 * 60 * 1000;
+const TEMPO_RESERVA=90*60*1000; // 1h30
 
-let vendidos=new Set(),escolhidos=[],adminAtivo=false,adminSel=[];
-let compradoresPorNumero={};       // { "12": "Nome" }  (admin sidebar)
-let reservasPorNumero={};          // { "12": {nome, fone, until} }
+let vendidos=new Set();
+let reservas={};
+let escolhidos=[];
+let compradoresPorNumero={};
 
 function pad(n){return String(n).padStart(3,'0')}
-
-function agoraMs(){ return Date.now(); }
-
-function normalizarFone(f){
-  // mantém como texto (usuário digita), só remove quebras e espaços extremos
-  return String(f||'').trim();
-}
-
-function marcarComoReservadoNome(nome){
-  // prefixo discreto pra admin identificar como "pendente"
-  return '⏳ ' + String(nome||'').trim();
-}
-
-function atualizarProgresso(){
-  const vendidosCount = vendidos.size;
-  const pct = Math.round((vendidosCount / TOTAL) * 100);
-  const txt = document.getElementById('progressoTxt');
-  const num = document.getElementById('progressoNum');
-  const fill = document.getElementById('progressoFill');
-  if(txt) txt.textContent = `🔥 ${pct}% dos números já foram vendidos`;
-  if(num) num.textContent = `${vendidosCount}/${TOTAL}`;
-  if(fill) fill.style.width = `${pct}%`;
-}
-
-function toggleSidebar(force){
-  if(!adminAtivo) return; // sidebar só no admin
-  const sb=document.getElementById('sidebar');
-  const show = (typeof force==='boolean') ? force : !sb.classList.contains('show');
-  sb.classList.toggle('show', show);
-}
-
-function atualizarSidebar(){
-  const box=document.getElementById('sidebarBody');
-  if(!box) return;
-
-  const grupos = {};
-  for(const k in compradoresPorNumero){
-    const nome = String(compradoresPorNumero[k]||'').trim();
-    const num = Number(k);
-    if(!nome || !Number.isFinite(num)) continue;
-    (grupos[nome] ||= []).push(num);
-  }
-
-  const nomes = Object.keys(grupos).sort((a,b)=>a.localeCompare(b,'pt-BR'));
-  if(nomes.length===0){
-    box.innerHTML='<p style="color:#64748b;font-weight:800">Ainda não há compradores registrados.</p>';
-    return;
-  }
-
-  box.innerHTML = nomes.map(nome=>{
-    const nums = grupos[nome].sort((a,b)=>a-b).map(pad).join(', ');
-    return '<div class="comp"><div class="comp-nome">👤 '+escapeHtml(nome)+'</div><div class="comp-nums">🎟️ '+nums+'</div></div>';
-  }).join('');
-}
-
-function atualizarAdminSelBar(){
-  const bar=document.getElementById('adminSelBar');
-  if(!bar) return;
-  if(adminAtivo && adminSel.length>0){
-    bar.classList.add('show');
-    document.getElementById('adminSelCount').textContent=String(adminSel.length);
-    document.getElementById('adminSelNums').textContent=adminSel.slice().sort((a,b)=>a-b).map(pad).join(', ');
-  }else{
-    bar.classList.remove('show');
-  }
-}
-
-function registrarComprador(){
-  if(!adminAtivo) return;
-  if(adminSel.length===0){
-    alert('Selecione um ou mais números livres (laranja) antes de registrar o comprador.');
-    return;
-  }
-  const nome = prompt('Nome do comprador (digite uma vez):');
-  if(nome===null) return;
-  const n = nome.trim();
-  if(!n){
-    alert('Nome inválido.');
-    return;
-  }
-
-  adminSel.forEach(num=>{
-    // ao vender, remove reserva se existir
-    delete reservasPorNumero[String(num)];
-    vendidos.add(num);
-    compradoresPorNumero[String(num)] = n;
-  });
-
-  adminSel = [];
-  buildGrid();
-  atualizarProgresso();
-  atualizarSidebar();
-  atualizarAdminSelBar();
-  atualizar();
-  salvarReservas(); // mantém reservas coerentes
-}
-
-function escapeHtml(str){
-  return String(str).replace(/[&<>"']/g, s=>({
-    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-  }[s]));
-}
-
-function limparReservasExpiradasSePreciso(){
-  const now = agoraMs();
-  let mudou = false;
-  for(const k in reservasPorNumero){
-    const r = reservasPorNumero[k];
-    const until = Number(r && r.until);
-    if(!until || until <= now){
-      delete reservasPorNumero[k];
-      // só remove comprador se era "pendente"
-      if(String(compradoresPorNumero[k]||'').trim().startsWith('⏳')) delete compradoresPorNumero[k];
-      mudou = true;
-    }
-  }
-  // também remove reservas de números já vendidos
-  for(const num of vendidos){
-    const k = String(num);
-    if(reservasPorNumero[k]){
-      delete reservasPorNumero[k];
-      mudou = true;
-    }
-  }
-  return mudou;
-}
-
-async function salvarReservas(){
-  try{
-    await fetch(FB_RESERVAS,{
-      method:'PUT',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(reservasPorNumero || {})
-    });
-  }catch(e){
-    // silencioso
-  }
-}
 
 async function carregarCotas(){
   try{
@@ -484,311 +336,135 @@ async function carregarCotas(){
       fetch(FB_RESERVAS)
     ]);
 
-    let dv=null, dc=null, dr=null;
-    if(rv.ok) dv = await rv.json();
-    if(rc.ok) dc = await rc.json();
-    if(rr.ok) dr = await rr.json();
-
-    vendidos = new Set((Array.isArray(dv)?dv:[]).map(x=>Number(x)).filter(x=>Number.isFinite(x)));
-    compradoresPorNumero = (dc && typeof dc==='object') ? dc : {};
-    reservasPorNumero = (dr && typeof dr==='object') ? dr : {};
-
-    const mudou = limparReservasExpiradasSePreciso();
-    if(mudou){
-      // persiste limpeza para todos verem igual
-      await Promise.all([
-        fetch(FB_RESERVAS,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(reservasPorNumero)}),
-        fetch(FB_COMPRADORES,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(compradoresPorNumero)})
-      ]);
-    }
+    vendidos = new Set((await rv.json()||[]).map(Number));
+    compradoresPorNumero = await rc.json()||{};
+    reservas = await rr.json()||{};
+    limparReservasExpiradas();
   }catch(e){
-    vendidos=new Set([]);
+    vendidos=new Set();
     compradoresPorNumero={};
-    reservasPorNumero={};
+    reservas={};
   }
-
   buildGrid();
-  atualizarProgresso();
-  atualizarSidebar();
-  atualizar();
+}
+
+function limparReservasExpiradas(){
+  const agora=Date.now();
+  for(const num in reservas){
+    if(agora-reservas[num].timestamp > TEMPO_RESERVA){
+      delete reservas[num];
+      delete compradoresPorNumero[num];
+    }
+  }
+  salvarReservas();
+}
+
+async function salvarReservas(){
+  await fetch(FB_RESERVAS,{
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(reservas)
+  });
 }
 
 function buildGrid(){
   const g=document.getElementById('grade');
   g.innerHTML='';
-  const now = agoraMs();
-
   for(let i=1;i<=TOTAL;i++){
     const d=document.createElement('div');
-    const isVendida = vendidos.has(i);
+    d.textContent=pad(i);
 
-    let isReservada = false;
-    const r = reservasPorNumero[String(i)];
-    if(r && Number(r.until) > now) isReservada = true;
-
-    if(isVendida){
+    if(vendidos.has(i)){
       d.className='cota vendida';
-    }else if(isReservada){
+    }else if(reservas[i]){
       d.className='cota reservada';
-      if(r && r.nome) d.title = 'Reservado para: ' + r.nome;
+      d.title='Reservada — aguardando confirmação da organizadora';
     }else{
       d.className='cota livre';
+      if(escolhidos.includes(i)) d.classList.add('escolhida'); // mantém seleção após refresh
     }
 
-    if(adminAtivo && !isVendida && !isReservada && adminSel.includes(i)) d.classList.add('adminsel');
-
-    d.textContent=pad(i);
     d.onclick=()=>clicar(i,d);
     g.appendChild(d);
   }
 }
 
 function clicar(n,el){
-  const key = String(n);
-  const now = agoraMs();
-  const reservadoAtivo = reservasPorNumero[key] && Number(reservasPorNumero[key].until) > now;
-
-  if(adminAtivo){
-    // Admin pode liberar vendido
-    if(vendidos.has(n)){
-      vendidos.delete(n);
-      delete compradoresPorNumero[key];
-      el.className='cota livre';
-      atualizarSidebar();
-      atualizarAdminSelBar();
-      atualizarProgresso();
-      return;
-    }
-
-    // Admin pode liberar reserva (caso marcado por engano)
-    if(reservadoAtivo){
-      delete reservasPorNumero[key];
-      if(String(compradoresPorNumero[key]||'').trim().startsWith('⏳')) delete compradoresPorNumero[key];
-      salvarReservas();
-      buildGrid();
-      atualizarSidebar();
-      atualizarAdminSelBar();
-      return;
-    }
-
-    // Seleção laranja só em números livres
-    const idx = adminSel.indexOf(n);
-    if(idx===-1){
-      adminSel.push(n);
-      el.classList.add('adminsel');
-    }else{
-      adminSel.splice(idx,1);
-      el.classList.remove('adminsel');
-    }
-    atualizarAdminSelBar();
-    return;
-  }
-
-  // visitante
-  if(vendidos.has(n) || reservadoAtivo) return;
+  if(vendidos.has(n) || reservas[n]) return;
 
   const idx=escolhidos.indexOf(n);
-  if(idx===-1){escolhidos.push(n);el.classList.replace('livre','escolhida');}
-  else{escolhidos.splice(idx,1);el.classList.replace('escolhida','livre');}
-  atualizar();
-}
-
-function atualizar(){
-  const bar=document.getElementById('barra');
-  if(escolhidos.length>0&&!adminAtivo){
-    bar.classList.add('show');
-    document.getElementById('bNums').textContent=escolhidos.map(pad).join(', ');
-    document.getElementById('bTotal').textContent='R$ '+escolhidos.length*VALOR;
-  }else{bar.classList.remove('show');}
-}
-
-function toggleAdmin(){document.getElementById('painelAdmin').classList.toggle('show');}
-
-function entrarAdmin(){
-  if(document.getElementById('senhaInput').value===SENHA){
-    adminAtivo=true;
-    document.getElementById('painelAdmin').classList.remove('show');
-    document.getElementById('avisoAdmin').classList.add('show');
-    const btn=document.getElementById('sidebarBtn');
-    if(btn) btn.style.setProperty('display','inline-flex','important');
-    escolhidos=[];
-    adminSel=[];
-    buildGrid();
-    atualizarSidebar();
-    atualizarAdminSelBar();
-    atualizar();
+  if(idx===-1){
+    escolhidos.push(n);
+    el.classList.add('escolhida');
   }else{
-    alert('Senha incorreta. Tente novamente.');
+    escolhidos.splice(idx,1);
+    el.classList.remove('escolhida');
   }
 }
 
-async function salvarAlteracoes(){
-  const elS=document.getElementById('salvando');
-  document.getElementById('sIcone').textContent='⏳';
-  document.getElementById('sMsg').textContent='Salvando...';
-  document.getElementById('sSub').textContent='Aguarde um momento';
-  elS.classList.add('show');
-  try{
-    const arr=[...vendidos].sort((a,b)=>a-b);
-
-    // remove reservas de números vendidos
-    for(const num of arr){
-      delete reservasPorNumero[String(num)];
-    }
-
-    const [pv, pc, pr] = await Promise.all([
-      fetch(FB_VENDIDOS,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(arr)}),
-      fetch(FB_COMPRADORES,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(compradoresPorNumero)}),
-      fetch(FB_RESERVAS,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(reservasPorNumero)})
-    ]);
-    if(!pv.ok || !pc.ok || !pr.ok) throw new Error('Falha ao salvar');
-
-    document.getElementById('sIcone').textContent='✅';
-    document.getElementById('sMsg').textContent='Salvo com sucesso!';
-    document.getElementById('sSub').textContent='Modo edição desativado';
-    setTimeout(()=>{
-      elS.classList.remove('show');
-      adminAtivo=false;
-      adminSel=[];
-      document.getElementById('avisoAdmin').classList.remove('show');
-      document.getElementById('adminSelBar').classList.remove('show');
-      const btn=document.getElementById('sidebarBtn');
-      if(btn) btn.style.setProperty('display','none','important');
-      toggleSidebar(false);
-      buildGrid();
-      atualizarSidebar();
-      atualizar();
-    },900);
-  }catch(e){
-    document.getElementById('sIcone').textContent='⚠️';
-    document.getElementById('sMsg').textContent='Erro ao salvar';
-    document.getElementById('sSub').textContent='Verifique sua internet e tente novamente';
-    setTimeout(()=>elS.classList.remove('show'),1400);
-  }
-}
-
-function abrirModal(){
-  if(!escolhidos.length)return;
-  const total=escolhidos.length*VALOR;
-  document.getElementById('resumo').innerHTML='🎟️ Número(s): <strong>'+escolhidos.map(pad).join(', ')+'</strong><br>💰 Valor a pagar: <strong>R$ '+total+',00</strong>';
-  document.getElementById('valorBox').textContent='R$ '+total+',00';
-  document.getElementById('copiadoPix').classList.remove('show');
-  document.getElementById('btnCopiar').textContent='📋 Copiar chave PIX';
-
-  // mensagem padrão (sem nome/telefone)
-  const msg=encodeURIComponent('Olá! Quero confirmar minha cota da rifa.\n\nNúmero(s): '+escolhidos.map(pad).join(', ')+'\nValor pago: R$ '+total+',00\n\nSegue o comprovante do PIX!');
-  document.getElementById('btnWpp').href='https://wa.me/'+WPP+'?text='+msg;
-
-  document.getElementById('overlay').classList.add('show');
-}
-
-function fecharModal(){document.getElementById('overlay').classList.remove('show');}
-
-function copiarPix(){
-  const copiar=()=>{
-    document.getElementById('copiadoPix').classList.add('show');
-    document.getElementById('btnCopiar').textContent='✅ Chave copiada!';
-  };
-  navigator.clipboard.writeText(PIX).then(copiar).catch(()=>{
-    const el=document.createElement('textarea');
-    el.value=PIX;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);
-    copiar();
+async function reservarNumeros(nome, nums){
+  const agora=Date.now();
+  (nums||[]).forEach(num=>{
+    reservas[num]={nome,timestamp:agora};
+    compradoresPorNumero[num]=nome;
   });
-}
-
-async function reservarSelecionados(nome, fone){
-  const now = agoraMs();
-  const until = now + TEMPO_RESERVA_MS;
-
-  const n = String(nome||'').trim();
-  const f = normalizarFone(fone);
-
-  // salva reservas + "pendente" no mapa de compradores (pra admin ver o nome já)
-  escolhidos.forEach(num=>{
-    const k = String(num);
-
-    // não reserva se já está vendido
-    if(vendidos.has(num)) return;
-
-    reservasPorNumero[k] = { nome: n, fone: f, until };
-    compradoresPorNumero[k] = marcarComoReservadoNome(n);
-  });
-
-  // persiste para todos
-  await Promise.all([
-    fetch(FB_RESERVAS,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(reservasPorNumero)}),
-    fetch(FB_COMPRADORES,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(compradoresPorNumero)})
-  ]);
+  await salvarReservas();
 }
 
 async function prepararWpp(e){
+  if(e) e.preventDefault();
+
   const nome=document.getElementById('nome').value.trim();
   const fone=document.getElementById('fone').value.trim();
   if(!nome||!fone){
-    e.preventDefault();
     alert('Por favor, preencha seu nome e WhatsApp antes de continuar.');
     return false;
   }
 
-  if(!escolhidos.length){
-    e.preventDefault();
-    alert('Selecione pelo menos 1 número.');
+  const nums = escolhidos.slice();
+  if(nums.length===0){
+    alert('Selecione pelo menos 1 número antes de enviar o comprovante.');
     return false;
   }
 
-  const total=escolhidos.length*VALOR;
-
-  // Reserva ANTES de abrir o WhatsApp (1h30)
-  e.preventDefault();
-  try{
-    await reservarSelecionados(nome, fone);
-  }catch(err){
-    // Se falhar, não impede (pra não travar venda)
-  }
-
+  const total=nums.length*VALOR;
   const linkDaRifa = location.href;
 
+  // 1) Reserva os números (1h30) com o nome informado
+  try{
+    await reservarNumeros(nome, nums);
+  }catch(err){
+    alert('Não foi possível reservar agora. Verifique sua internet e tente novamente.');
+    return false;
+  }
+
+  // 2) Atualiza UI local imediatamente (evita “sumir seleção” sem feedback)
+  nums.forEach(n=>{
+    // remove da lista de selecionados
+    const idx = escolhidos.indexOf(n);
+    if(idx>-1) escolhidos.splice(idx,1);
+  });
+  
+  buildGrid();
+
+  // 3) Abre WhatsApp UMA vez, sem abrir/fechar rápido
   const msg=encodeURIComponent(
     'Olá! Quero confirmar minha cota da rifa.\n\n' +
     'Nome: '+nome+'\n' +
     'WhatsApp: '+fone+'\n' +
-    'Número(s): '+escolhidos.map(pad).join(', ')+'\n' +
+    'Número(s): '+nums.map(pad).join(', ')+'\n' +
     'Valor pago: R$ '+total+',00\n\n' +
     'Link da rifa: '+linkDaRifa+'\n\n' +
     'Segue o comprovante do PIX!'
   );
 
   const url='https://wa.me/'+WPP+'?text='+msg;
-
-  // fecha modal e limpa seleção visual
-  fecharModal();
-  escolhidos = [];
-  buildGrid();
-  atualizar();
-
-  window.open(url, '_blank', 'noopener');
+  window.location.href=url;
   return false;
 }
 
-document.getElementById('overlay').addEventListener('click',function(e){if(e.target===this)fecharModal();});
-
 carregarCotas();
-// Atualiza mais rápido sem atrapalhar admin
-setInterval(()=>{if(!adminAtivo)carregarCotas();},15000);
-
-// Limpeza local (caso o usuário fique com a página aberta)
-setInterval(()=>{ if(!adminAtivo){ 
-  const mudou = limparReservasExpiradasSePreciso();
-  if(mudou){
-    // salva sem bloquear UI
-    Promise.all([
-      fetch(FB_RESERVAS,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(reservasPorNumero)}),
-      fetch(FB_COMPRADORES,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(compradoresPorNumero)})
-    ]).catch(()=>{});
-    buildGrid();
-    atualizarSidebar();
-  }
-}},60000);
+setInterval(carregarCotas,20000);
 </script>
 </body>
 </html>
