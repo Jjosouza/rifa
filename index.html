@@ -33,6 +33,7 @@ body{font-family:'Nunito',sans-serif;background:#f4f4f4;color:#222;font-size:18p
 .lc{width:22px;height:22px;border-radius:5px;flex-shrink:0}
 .lc.livre{background:#f9fafb;border:2px solid #d1d5db}
 .lc.vendida{background:#fca5a5;border:2px solid #f87171}
+.lc.reservada{background:#fde68a;border:2px solid #facc15}
 .lc.escolhida{background:#22c55e;border:2px solid #16a34a}
 .grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:7px}
 .cota{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;cursor:pointer;border:2px solid transparent;transition:transform .12s;user-select:none;-webkit-tap-highlight-color:transparent}
@@ -227,6 +228,10 @@ footer strong{color:white}
     <div class="pnum">4</div>
     <div class="ptxt">Depois de pagar, toque em <strong>"Enviar comprovante"</strong> — o WhatsApp abre sozinho com tudo preenchido!</div>
   </div>
+  <div style="margin-top:14px;background:#f1f5f9;border:2px solid #e2e8f0;border-radius:12px;padding:12px 14px;font-size:0.95rem;color:#0f172a;font-weight:800;line-height:1.5">
+    ℹ️ Ao enviar o comprovante, seus números ficam <strong>reservados</strong> e só viram <strong>vendidos</strong> depois que a organizadora confirmar.
+  </div>
+
 </div>
 
 <div class="card">
@@ -244,6 +249,7 @@ footer strong{color:white}
 <div class="legenda">
     <div class="li"><div class="lc livre"></div>Disponível</div>
     <div class="li"><div class="lc vendida"></div>Vendida</div>
+    <div class="li"><div class="lc reservada"></div>Reservada</div>
     <div class="li"><div class="lc escolhida"></div>Selecionada</div>
   </div>
   <div class="grade" id="grade">
@@ -422,6 +428,24 @@ function showToast(msg, opts={}){
 
   const ms = Number.isFinite(opts.durationMs) ? opts.durationMs : 2600;
   timer=setTimeout(()=>{ t.remove(); }, ms);
+}
+
+function showOverlay({icon='⏳', msg='Salvando...', sub='Aguarde um momento', autocloseMs=null}={}){
+  const ov = qs('salvando');
+  if(!ov) return;
+  const ic = qs('sIcone'), m = qs('sMsg'), s = qs('sSub');
+  if(ic) ic.textContent = icon;
+  if(m) m.textContent = msg;
+  if(s) s.textContent = sub;
+  ov.classList.add('show');
+  if(Number.isFinite(autocloseMs) && autocloseMs>0){
+    setTimeout(()=>{ hideOverlay(); }, autocloseMs);
+  }
+}
+function hideOverlay(){
+  const ov = qs('salvando');
+  if(!ov) return;
+  ov.classList.remove('show');
 }
 
 // helper: executa ação e oferece "Desfazer"
@@ -759,36 +783,89 @@ async function carregarSidebarCompradores(){
   const compradores = (dc && typeof dc==='object') ? dc : {};
   const reservasDb = (dr && typeof dr==='object') ? dr : {};
 
-  // agrupa por nome
-  const mapa = new Map(); // nome -> {vendidos:[], reservados:[]}
-  for(const k in compradores){
-    const nome = (compradores[k]||'').toString().trim() || 'Sem nome';
+  // agrupa por "nome|fone" (preferindo dados da reserva, quando existir)
+  const mapa = new Map(); // key -> {nome, fone, vendidos:[], reservados:[]}
+
+  // 1) a partir das reservas (pendências)
+  for(const k in reservasDb){
+    const r = reservasDb[k] || {};
     const num = Number(k);
     if(!Number.isFinite(num)) continue;
-    const entry = mapa.get(nome) || {vendidos:[], reservados:[]};
-    if(reservasDb[String(num)]) entry.reservados.push(num);
-    else entry.vendidos.push(num);
-    mapa.set(nome, entry);
+    const nome = (r.nome || compradores[k] || 'Sem nome').toString().trim() || 'Sem nome';
+    const fone = (r.fone || '').toString().trim();
+    const key = `${nome}||${fone}`;
+    const entry = mapa.get(key) || {nome, fone, vendidos:[], reservados:[]};
+    entry.reservados.push(num);
+    mapa.set(key, entry);
   }
 
-  // render
-  const nomes=[...mapa.keys()].sort((a,b)=>a.localeCompare(b,'pt-BR'));
-  if(nomes.length===0){
-    body.innerHTML = '<p style="color:#64748b;font-weight:800">Nenhum comprador ainda.</p>';
+  // 2) a partir de compradores (vendidos e também compat com bases antigas)
+  for(const k in compradores){
+    const num = Number(k);
+    if(!Number.isFinite(num)) continue;
+    const nome = (compradores[k]||'').toString().trim() || 'Sem nome';
+    // tenta achar um grupo existente do mesmo nome (com ou sem fone)
+    let keyFound = null;
+    for(const key of mapa.keys()){
+      if(key.startsWith(nome+'||')) { keyFound = key; break; }
+    }
+    const key = keyFound || `${nome}||`;
+    const entry = mapa.get(key) || {nome, fone:'', vendidos:[], reservados:[]};
+    // se estiver em reservas, já entrou como reservada; senão, é vendido
+    if(!reservasDb[String(num)]) entry.vendidos.push(num);
+    mapa.set(key, entry);
+  }
+
+  const grupos = [...mapa.values()].sort((a,b)=> (a.nome||'').localeCompare((b.nome||''),'pt-BR'));
+
+  if(grupos.length===0){
+    body.innerHTML = '<p style="color:#64748b;font-weight:800">Nenhuma pendência ainda.</p>';
     return;
   }
 
-  body.innerHTML = nomes.map(nome=>{
-    const it=mapa.get(nome);
-    const nums=[...(it.vendidos||[]).sort((a,b)=>a-b).map(pad)];
-    const res=[...(it.reservados||[]).sort((a,b)=>a-b).map(pad)];
-    const linhas = []
-    if(nums.length) linhas.push('✅ '+nums.join(', '));
-    if(res.length) linhas.push('⏳ '+res.join(', '));
-    return `<div class="comp">
-      <div class="comp-nome">${escapeHtml(nome)}</div>
-      <div class="comp-nums">${linhas.join('<br>')}</div>
-    </div>`;
+    const chipStyle = `
+    display:inline-flex;align-items:center;justify-content:center;
+    padding:6px 10px;border-radius:999px;border:2px solid #fde68a;
+    background:#fef9c3;color:#92400e;font-weight:900;font-size:0.92rem;
+    margin:4px 6px 0 0;font-family:'Nunito',sans-serif;
+  `;
+
+  const btnOkStyle = `
+    display:inline-flex;align-items:center;justify-content:center;
+    padding:10px 12px;border-radius:12px;border:0;
+    background:#16a34a;color:#fff;font-weight:900;font-size:0.95rem;
+    margin-top:10px;cursor:pointer;font-family:'Nunito',sans-serif;
+    width:100%;
+  `;
+
+  // expõe pendências por grupo para o botão "confirmar tudo"
+  window.__pendenciasGrupos = {};
+
+  body.innerHTML = grupos.map((g,idx)=>{
+    const vend = (g.vendidos||[]).sort((a,b)=>a-b).map(pad);
+    const resv = (g.reservados||[]).sort((a,b)=>a-b);
+
+    // salva mapeamento do grupo (para confirmar todos de uma vez)
+    window.__pendenciasGrupos[idx] = { nome: g.nome || '', fone: g.fone || '', nums: resv.slice() };
+
+    const header = `<div class="comp-nome">${escapeHtml(g.nome)}${g.fone?` <span style="font-weight:800;color:#64748b;font-size:0.9rem">(${escapeHtml(g.fone)})</span>`:''}</div>`;
+
+    const pend = resv.length
+      ? `<div style="margin-top:6px">
+           <div style="font-weight:900;color:#92400e;margin-bottom:6px">⏳ Pendências (${resv.length})</div>
+           <div>
+             ${resv.map(n=>`<span style="${chipStyle}">${pad(n)}</span>`).join('')}
+           </div>
+           <button type="button" style="${btnOkStyle}" onclick="confirmarPendenciasGrupo(${idx})">✅ Confirmar todos os números deste comprador</button>
+         </div>`
+      : '';
+
+    const vendidosHtml = vend.length
+      ? `<div style="margin-top:10px;font-weight:900;color:#14532d">✅ Vendidos</div>
+         <div class="comp-nums">${vend.join(', ')}</div>`
+      : '';
+
+    return `<div class="comp">${header}${pend}${vendidosHtml}</div>`;
   }).join('');
 }
 
@@ -804,14 +881,15 @@ function escapeHtml(str){
 
 // ============ BOTÕES ADMIN ANTIGOS (compatibilidade, sem quebrar) ============
 function salvarAlteracoes(){
-  // Mantido por compatibilidade: no seu fluxo atual as ações já salvam via fetch.
-  // Aqui a gente só força um refresh e sai do modo admin (comportamento antigo).
+  // Compat: força refresh e volta ao modo normal (como era antes), com feedback bem visível.
+  showOverlay({icon:'✅', msg:'Salvo com sucesso!', sub:'Atualizando a página…', autocloseMs:900});
   carregarCotas().catch(()=>{});
-  showToast('Atualizado ✅');
-  sairAdmin();
-  // fecha sidebar se estiver aberta
-  const sb = qs('sidebar');
-  if(sb) sb.classList.remove('open');
+  // sai do admin após um instante curto para não “piscar”
+  setTimeout(()=>{
+    sairAdmin();
+    const sb = qs('sidebar');
+    if(sb) sb.classList.remove('open');
+  }, 500);
 }
 
 
@@ -911,6 +989,62 @@ async function confirmarReservaComoVenda(num){
   atualizarProgresso();
   showToast(`✅ Número ${pad(num)} confirmado como vendido.`);
 }
+
+// Confirma reserva a partir da sidebar (pendências)
+async function confirmarReservaSidebar(num){
+  try{
+    showOverlay({icon:'⏳', msg:`Confirmando ${pad(num)}...`, sub:'Aguarde'});
+    await confirmarReservaComoVenda(num); // mantém nome do comprador
+    showOverlay({icon:'✅', msg:`Confirmado ${pad(num)}!`, sub:'Atualizando…', autocloseMs:900});
+    await carregarCotas().catch(()=>{});
+    await carregarSidebarCompradores().catch(()=>{});
+  }catch(err){
+    console.error(err);
+    showOverlay({icon:'⚠️', msg:'Falha ao confirmar', sub:'Verifique sua internet', autocloseMs:1600});
+  }
+}
+
+// Confirma TODAS as reservas de um comprador (grupo) a partir da sidebar
+async function confirmarPendenciasGrupo(idx){
+  try{
+    const g = (window.__pendenciasGrupos && window.__pendenciasGrupos[idx]) ? window.__pendenciasGrupos[idx] : null;
+    const nums = (g && Array.isArray(g.nums)) ? g.nums.slice() : [];
+    if(nums.length===0){
+      showToast('Este comprador não tem pendências.');
+      return;
+    }
+
+    showOverlay({icon:'⏳', msg:`Confirmando ${nums.length} número(s)...`, sub:'Aguarde'});
+
+    // 1) remove todas as reservas (child) em paralelo
+    await Promise.all(nums.map(n =>
+      fetch(`${FB_BASE}/reservas/${n}.json`, {method:'DELETE', keepalive:true}).catch(()=>{})
+    ));
+    for(const n of nums){
+      delete reservas[String(n)];
+    }
+
+    // 2) adiciona todos em vendidos em um único PUT (evita corrida)
+    const setAtual = await getVendidosAtual();
+    for(const n of nums){ setAtual.add(Number(n)); }
+    await putVendidos(setAtual);
+    vendidos = setAtual;
+
+    // 3) comprador permanece (nome/registro não é apagado)
+    buildGrid();
+    atualizarProgresso();
+
+    showOverlay({icon:'✅', msg:'Confirmado com sucesso!', sub:`${nums.length} número(s) marcados como vendidos.`, autocloseMs:1100});
+
+    // refresh para manter sidebar/grade sincronizadas
+    await carregarCotas().catch(()=>{});
+    await carregarSidebarCompradores().catch(()=>{});
+  }catch(err){
+    console.error(err);
+    showOverlay({icon:'⚠️', msg:'Falha ao confirmar', sub:'Verifique sua internet', autocloseMs:1700});
+  }
+}
+
 
 async function liberarReserva(num){
   const key=String(num);
@@ -1050,12 +1184,15 @@ window.prepararWpp = prepararWpp;
 window.sairAdmin = sairAdmin;
 window.cancelarConfirma = cancelarConfirma;
 window.confirmarReservaRapida = confirmarReservaRapida;
+window.confirmarReservaSidebar = confirmarReservaSidebar;
 window.abrirModal = abrirModal;
 window.fecharModal = fecharModal;
 window.copiarPix = copiarPix;
 window.toggleSidebar = toggleSidebar;
 window.salvarAlteracoes = salvarAlteracoes;
 window.registrarComprador = registrarComprador;
+window.confirmarReservaSidebar = confirmarReservaSidebar;
+window.confirmarPendenciasGrupo = confirmarPendenciasGrupo;
 
 // boot (garante DOM pronto)
 document.addEventListener('DOMContentLoaded', ()=>{
